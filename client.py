@@ -6,6 +6,9 @@ class Client:
     def __init__(self,ip,port):
         self.ip = ip
         self.port = port
+        self.socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        self.seqnum = 0
+        self.last_sent = {}
 
     def run(self):
         while True:
@@ -14,8 +17,9 @@ class Client:
                 print('valid input')
                 if(req[0] == '?'):
                     self.req_key(req[1:])
+                    self.receive_answer()
                 elif(req[0] == 'T'):
-                    self.req_topo():
+                    self.req_topo()
                 else:
                     self.quit()
                 continue
@@ -40,7 +44,7 @@ class Client:
         else:
             return True
 
-    def frame_message(msg_type,msg=''):
+    def frame_message(self,msg_type,msg=''):
         '''
         Creates framed messages.
         Client can only send KeyReq and TopoReq.
@@ -61,24 +65,61 @@ class Client:
 
         Max length = 400
         '''
+        print(type(msg_type))
+
         frame = bytes()
-        frames += struct.pack('!H',msg_type)
-        frames += self.seqnum
+        frame += struct.pack('!H',msg_type)
+        frame += struct.pack('!I',self.seqnum)
         if msg_type == 5:
-            frames += msg.encode()
+            frame += msg.encode()
         return frame
+
+    def process_answer(self,msg):
+        value = msg[0][6:]
+        value = value.decode()
+        complete_message = value + ' ' + msg[1][0] + ':' + msg[1][1]
+        return value
+
+    def receive_answer(self):
+        attempt = 0
+        while True:
+            self.socket.settimeout(4)
+            try:
+                msg = self.socket.recvfrom(420)
+                value = self.process_answer(msg[0])
+                print(value)
+            except:
+                if attempt == 1:
+                    print("No message received")
+                    break
+                else:
+                    attempt += 1
+        while True:
+            try:
+                msg = self.socket.recvfrom(420)
+                value = self.process_answer(420)
+                print(value)
+            except:
+                break
 
     def req_key(self,key):
         '''
             Requires key for connected node
         '''
-        pass
+        frame = self.frame_message(5,key)
+        self.socket.sendto(frame,(self.ip,self.port))
+        self.last_sent = {'type':5,'seqnum':self.seqnum}
+        self.seqnum += 1
+        return
 
     def req_topo(self):
         '''
             Requires topology for connected node
         '''
-        pass
+        frame = self.frame_message(6)
+        self.socket.sendto(frame,(self.ip,self.port))
+        self.seqnum += 1
+        return
 
     def quit(self):
         '''
