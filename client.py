@@ -14,12 +14,13 @@ class Client:
         while True:
             req = input()
             if self.valid_input(req):
-                print('valid input')
                 if(req[0] == '?'):
-                    self.req_key(req[1:])
+                    key_req = req.split(None,1)[1]
+                    self.req_key(key_req)
                     self.receive_answer()
                 elif(req[0] == 'T'):
                     self.req_topo()
+                    self.receive_answer()
                 else:
                     self.quit()
                 continue
@@ -41,8 +42,10 @@ class Client:
                 return True
             else:
                 return False
-        else:
+        elif c == '?' and req[1] == ' ':
             return True
+        else:
+            return False
 
     def frame_message(self,msg_type,msg=''):
         '''
@@ -65,7 +68,6 @@ class Client:
 
         Max length = 400
         '''
-        print(type(msg_type))
 
         frame = bytes()
         frame += struct.pack('!H',msg_type)
@@ -75,20 +77,35 @@ class Client:
         return frame
 
     def process_answer(self,msg):
-        value = msg[0][6:]
-        value = value.decode()
-        complete_message = value + ' ' + msg[1][0] + ':' + msg[1][1]
-        return value
+        nseq = struct.unpack('!I',msg[0][2:6])[0]
+        if self.last_sent['seqnum'] == nseq:
+            value = msg[0][6:]
+            value = value.decode()
+            if self.last_sent['type'] == 5:
+                if msg[1][0] == '127.0.0.1':
+                    ip = socket.gethostbyname(socket.gethostname())
+                else:
+                    ip = msg[1][0]
+                complete_message = value + ' ' + ip + ':' + str(msg[1][1])
+                return complete_message
+            elif self.last_sent['type'] == 6:
+                return value
+        else:
+            return 'Invalid message from ' +msg[1][0] + ':'+ str(msg[1][1])
 
     def receive_answer(self):
         attempt = 0
+        # msg=  self.socket.recvfrom(420)
+        # print(msg,'received')
         while True:
             self.socket.settimeout(4)
+            # self.socket.setblocking(1)
             try:
                 msg = self.socket.recvfrom(420)
-                value = self.process_answer(msg[0])
-                print(value)
-            except:
+                if msg:
+                    print(self.process_answer(msg))
+                    break
+            except socket.timeout:
                 if attempt == 1:
                     print("No message received")
                     break
@@ -97,9 +114,9 @@ class Client:
         while True:
             try:
                 msg = self.socket.recvfrom(420)
-                value = self.process_answer(420)
-                print(value)
-            except:
+                if msg:
+                    print(self.process_answer(msg))
+            except socket.timeout:
                 break
 
     def req_key(self,key):
@@ -118,6 +135,7 @@ class Client:
         '''
         frame = self.frame_message(6)
         self.socket.sendto(frame,(self.ip,self.port))
+        self.last_sent = {'type':6,'seqnum':self.seqnum}
         self.seqnum += 1
         return
 
@@ -125,6 +143,8 @@ class Client:
         '''
             Exit program
         '''
+        self.socket.close()
+        sys.exit(0)
         pass
 
 if __name__ == '__main__':
