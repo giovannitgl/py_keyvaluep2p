@@ -36,13 +36,10 @@ class Servent:
         return f_dict
 
     def process_list(self,list_con):
-        # print('list_con',list_con)
+        # matches digit.digit.digit.digit
+        # or matches chars (intended for localhost)
         match = re.findall(r'(\d+.\d+.\d+.\d+|\w+):(\d+)',list_con)
-        # print('match',match)
         return match
-        # list_connection = []
-        # for i in match:
-        #     list_connection.append(i)
 
     def frame_message(self,type_msg,seqnum,origip=0,origport=0,msg=''):
         '''
@@ -70,9 +67,7 @@ class Servent:
         if type_msg == 7 or type_msg == 8:
             frame += struct.pack('!H',self.TTL)
             frame += struct.pack('!I',seqnum)
-        # if type_msg == 7 or type_msg ==8:
             frame += self.ip_str_b(origip)
-            # frame += struct.pack('!I',origip)
             frame += struct.pack('!H',origport)
         if type_msg == 9:
             frame += struct.pack('!I',seqnum)
@@ -88,7 +83,7 @@ class Servent:
             sender_ip = rcv[1][0]
             sender_port = rcv[1][1]
             type_msg = struct.unpack('!H',msg[0:2])[0]
-            # print(type_msg)
+            #receive keyreq
             if type_msg == 5 :
                 nseq = struct.unpack('!I',msg[2:6])[0]
                 info = msg[6:].decode()
@@ -98,6 +93,7 @@ class Servent:
                 flood_frame = self.create_key_flood(nseq,sender_ip,sender_port,info)
                 for i in self.list_con:
                     self.socket.sendto(flood_frame,(i[0],int(i[1])))
+            #receive toporeq
             if type_msg == 6:
                 nseq = struct.unpack('!I',msg[2:6])[0]
                 new_msg = self.ip + ':' + str(self.port)
@@ -106,20 +102,20 @@ class Servent:
                 self.send_answer_topo(nseq,self.ip + ':' + str(self.port), sender_ip,sender_port)
                 for i in self.list_con:
                     self.socket.sendto(flood_frame,(i[0],int(i[1])))
+            #receive flood
             if type_msg == 7 or type_msg ==8:
                 TTL = struct.unpack('!H',msg[2:4])[0]
                 nseq = struct.unpack('!I',msg[4:8])[0]
-                # ip = struct.unpack('!I',msg[8:12])[0]
                 ip = msg[8:12]
                 port = struct.unpack('!H',msg[12:14])[0]
                 info = msg[14:].decode()
                 ip_str = self.ip_b_str(ip)
+                #flood forward
                 if type_msg == 7:
                     if not self.received_before(nseq,ip_str,port):
                         self.new_message(nseq,ip_str,port)
                         if info in self.keyval:
                             self.send_answer_key(nseq,info,ip_str,port)
-                    #TODO flood forward msg to contacts
                     self.forward_frame(msg ,TTL)
                 if type_msg == 8:
                     if not self.received_before(nseq,ip_str,port):

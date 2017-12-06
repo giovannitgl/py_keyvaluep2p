@@ -94,12 +94,12 @@ class Client:
             return 'Invalid message from ' +msg[1][0] + ':'+ str(msg[1][1])
 
     def receive_answer(self):
+        '''
+            Method for receiving and timing out
+        '''
         attempt = 0
-        # msg=  self.socket.recvfrom(420)
-        # print(msg,'received')
         while True:
             self.socket.settimeout(4)
-            # self.socket.setblocking(1)
             try:
                 msg = self.socket.recvfrom(420)
                 if msg:
