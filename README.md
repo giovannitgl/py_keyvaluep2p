@@ -1,5 +1,5 @@
 # py_keyvaluep2p
-P2P Key value storage
+P2P Key value storage, developed for Python 3.5 +
 
         Protocol is defined as:
         
@@ -20,3 +20,16 @@ P2P Key value storage
         0         2     6            6 + length*2
 
         Numbers are bytes, max length = 400.
+        
+  ## How to run:
+  python client.py ip:port
+  python servent.py port dictfile ip1:port1 ip2:port2 ... ipn:portn 
+  
+  ## Commands:
+  In client you can run three types of commands:
+*       ? <key>
+        Query the value for the given key
+*       T
+        Asks the network topology
+*       Q
+        Quit
